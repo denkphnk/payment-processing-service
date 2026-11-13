@@ -3,13 +3,14 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from src.api.routers.payments import router as payments_router
-from src.messaging.broker import broker, payments_queue
+from src.messaging.broker import broker, payments_dlq, payments_queue
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await broker.connect()
     await broker.declare_queue(payments_queue)
+    await broker.declare_queue(payments_dlq)
 
     yield
 
