@@ -30,7 +30,7 @@ class PaymentDetails(BaseModel):
     amount: Decimal
     currency: Currency
     description: str | None
-    metadata: dict
+    metadata: dict = Field(validation_alias="metadata_json")
     status: Literal["pending", "succeeded", "failed"]
     created_at: datetime
     processed_at: datetime | None
