@@ -4,7 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select
 from src.core.database import async_session_factory
-from src.data.models.outbox import Outbox
+from src.data.models.outbox import Outbox, OutboxStatus
 from src.data.models.payment import Payment
 from src.messaging.broker import broker, payments_queue
 
@@ -25,9 +25,8 @@ async def get_pending_events() -> list[Outbox]:
         result = await session.execute(
             select(Outbox)
             .where(
-                Outbox.published_at.is_(None),
-                Outbox.next_attempt_at <= datetime.now(timezone.utc),
-                Outbox.attempts < MAX_ATTEMPTS,
+                Outbox.status == OutboxStatus.PENDING,
+                Outbox.next_attempt_at <= datetime.now(timezone.utc)
             )
             .order_by(Outbox.created_at)
             .limit(BATCH_SIZE)
@@ -54,6 +53,9 @@ async def publish_event(event: Outbox) -> None:
                     datetime.now(timezone.utc)
                     + timedelta(seconds=2 ** db_event.attempts)
                 )
+
+                if db_event.attempts >= MAX_ATTEMPTS:
+                    db_event.status = OutboxStatus.FAILED
                 await session.commit()
 
         raise
@@ -62,6 +64,7 @@ async def publish_event(event: Outbox) -> None:
         db_event = await session.get(Outbox, event.id)
 
         if db_event is not None:
+            db_event.status = OutboxStatus.PUBLISHED
             db_event.published_at = datetime.now(timezone.utc)
             await session.commit()
 

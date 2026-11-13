@@ -1,11 +1,18 @@
 import uuid
+import enum
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid, func, text
+from sqlalchemy import DateTime, ForeignKey, Integer, String, Text, Uuid, func, text, Enum
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from src.data.models.base import Base
+
+
+class OutboxStatus(enum.StrEnum):
+    PENDING = "pending"
+    PUBLISHED = "published"
+    FAILED = "failed"
 
 
 class Outbox(Base):
@@ -21,6 +28,18 @@ class Outbox(Base):
         Uuid(as_uuid=True),
         ForeignKey("payments.id", ondelete="CASCADE"),
         nullable=False,
+    )
+
+    status: Mapped[OutboxStatus] = mapped_column(
+        Enum(
+            OutboxStatus,
+            name="outbox_status",
+            values_callable=lambda enum_cls: [item.value for item in enum_cls],
+        ),
+        nullable=False,
+        default=lambda: OutboxStatus.PENDING,
+        server_default="pending",
+
     )
 
     event_type: Mapped[str] = mapped_column(String(100), nullable=False)
