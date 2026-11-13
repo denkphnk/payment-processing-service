@@ -1,4 +1,3 @@
-
 import asyncio
 import logging
 from datetime import datetime, timedelta, timezone
@@ -8,6 +7,11 @@ from src.core.database import async_session_factory
 from src.data.models.outbox import Outbox
 from src.data.models.payment import Payment
 from src.messaging.broker import broker, payments_queue
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s | %(levelname)s | %(name)s | %(message)s",
+)
 
 logger = logging.getLogger(__name__)
 
