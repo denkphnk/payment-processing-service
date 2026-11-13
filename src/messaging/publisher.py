@@ -1,11 +1,11 @@
 import asyncio
 import logging
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from sqlalchemy import select
+
 from src.core.database import async_session_factory
 from src.data.models.outbox import Outbox, OutboxStatus
-from src.data.models.payment import Payment
 from src.messaging.broker import broker, payments_queue
 
 logging.basicConfig(
@@ -26,7 +26,7 @@ async def get_pending_events() -> list[Outbox]:
             select(Outbox)
             .where(
                 Outbox.status == OutboxStatus.PENDING,
-                Outbox.next_attempt_at <= datetime.now(timezone.utc)
+                Outbox.next_attempt_at <= datetime.now(UTC)
             )
             .order_by(Outbox.created_at)
             .limit(BATCH_SIZE)
@@ -50,7 +50,7 @@ async def publish_event(event: Outbox) -> None:
                 db_event.attempts += 1
                 db_event.last_error = str(exc)
                 db_event.next_attempt_at = (
-                    datetime.now(timezone.utc)
+                    datetime.now(UTC)
                     + timedelta(seconds=2 ** db_event.attempts)
                 )
 
@@ -65,7 +65,7 @@ async def publish_event(event: Outbox) -> None:
 
         if db_event is not None:
             db_event.status = OutboxStatus.PUBLISHED
-            db_event.published_at = datetime.now(timezone.utc)
+            db_event.published_at = datetime.now(UTC)
             await session.commit()
 
 
@@ -92,7 +92,7 @@ async def run_publisher() -> None:
             await asyncio.sleep(POLL_INTERVAL)
 
     finally:
-        await broker.close()
+        await broker.stop()
         logger.info("Outbox publisher stopped")
 
 
